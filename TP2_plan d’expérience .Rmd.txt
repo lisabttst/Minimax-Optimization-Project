@@ -1,0 +1,175 @@
+
+# Exercice 1
+
+Importer le package DiceDesign
+Importer également les packages geometry et pracma.
+
+```{r warning = FALSE}
+library(DiceDesign)
+library(geometry)
+library(pracma)
+```
+
+### Question 1
+
+Grâce à la fonction lhsDesign(n,p) du package DiceDesign, construire un plan LHS non optimisé à 10 points en 2 dimensions et le visualiser.
+
+```{r}
+X_init = lhsDesign(10,2)
+plot(X_init$design[,1],X_init$design[,2],pch = 21, bg = "red",col  = "red",xlab = "x",ylab='y')
+```
+
+### Question 2
+
+Grâce à la fonction maximinSA_LHS, construire un plan LHS en optimisant le critère maximin. (en conservant l'ensemble des paramètres de la fonction par défaut)
+
+```{r}
+X_opt_Mm <- maximinSA_LHS(X_init$design)
+plot(X_opt_Mm$design[,1],X_opt_Mm$design[,2],pch = 21, bg = "green",col  = "green",xlab = "x",ylab='y')
+```
+
+### Question 3
+
+Grâce à la fonction discrepSA_LHS, construire un plan LHS en optimisant la discrépance (en conservant l'ensemble des paramètres de la fonction par défaut)
+
+```{r}
+X_opt_Disc <- discrepSA_LHS(X_init$design)
+plot(X_opt_Disc$design[,1],X_opt_Disc$design[,2],pch = 21, bg = "blue",col  = "blue",xlab = "x",ylab='y')
+```
+
+### Question 4
+
+Parmi les 3 plans, lequel est optimal selon le critère maximin ? Utiliser la fonction mindist.
+
+```{r}
+mindist(X_init$design)
+mindist(X_opt_Mm$design)
+mindist(X_opt_Disc$design)
+```
+
+Le plan optimal selon le critère maximin est bien celui qui a été optimsé vis-à-vis de ce critère, le résultat était attendu. Le meilleur critère est ici le plus grand, on cherche à maximiser la distance minimale. Selon ce critère maximin, on trouve sur cet exemple l’ordre LHS (moins bon), puis Discrepance, puis Maximin (meilleur).
+
+### Question 5
+
+Parmi les 3 plans, lequel est optimal selon le critère minimax ? Utiliser la fonction Minimax du dossier "functions". Interpréter le point vert
+```{r}
+source('functions/Minimax.R')
+par(pty="s")
+Minimax(X_init$design)
+Minimax(X_opt_Mm$design)
+Minimax(X_opt_Disc$design)
+```
+
+Le plan optimal selon le critère minimax est celui qui a été optimsé vis-à-vis de la discrépance, il correspond à la plus petite distance miniMax. Attention! on cherche ici à minimiser la distance miniMax, le meilleur critère est cette fois-ci le plus petit! Selon ce critère minimax, on trouve sur cet exemple l’ordre LHS (moins bon), puis Maximin, puis Discrepance (meilleur).
+
+Le point vert nous montre le point du domaine le plus éloigné du plan d’expériences, au sens de la distance entre un point et un plan d’expériences vue en cours.
+
+### Question 6
+
+Parmi les 3 plans, lequel est optimal selon la discrépance ? Utiliser la fonction discrepancyCriteria.
+
+```{r}
+discrepancyCriteria(X_init$design, type = "C2")
+discrepancyCriteria(X_opt_Mm$design, type = "C2")
+discrepancyCriteria(X_opt_Disc$design, type = "C2")
+```
+
+
+Le plan optimal selon la discrépance est bien celui qui a été optimsé vis-à-vis de ce critère, le résultat était attendu. Selon ce critère discrépance, on trouve sur cet exemple l’ordre LHS (moins bon), puis Maximin, puis Discrepance (meilleur). La meilleure discrépance est la plus petite.
+
+
+
+# Exercice 2 :
+
+Créer une function permettant de généer un LHS(n,p) avec un aléa uniforme (bien sûr sans utiliser de fonctions dédiées déjà implémentées comme lhsDesign), et visualiser un plan lhs(10,2) construit avec cette fonction.
+
+```{r}
+set.seed(12321)
+
+lhs = function(n,p,fuzzWithinCell=TRUE){
+  # fuzzWithinCell indicates if a uniform variable is added to the LHS points
+  factor <- if(fuzzWithinCell) 1 else 0
+  
+  x = matrix(0,nrow=n,ncol=p) 
+  for (i in 1:p){
+    pi = sample(1:n)
+    u <-  runif(n,0,1) * factor 
+    xi = (pi - u )/n
+    x[,i] = xi
+  }
+  x
+}
+
+plot(lhs(10,2)[,1], lhs(10,2)[,2], xlim=c(0,1), ylim=c(0,1))
+
+# draw vertical lines and horizontal lines
+abline(v=seq(0,10)/10, col="grey", lty=3)
+abline(h=seq(0,10)/10, col="grey", lty=3)
+```
+
+# Exercice 3
+
+Approcher l'intégrale suivante : $$\int_{\left[0,1\right]^{4}}\displaystyle(\prod_{i=1}^{4}x_{i}^{3})dx$$
+à l'aide d'une suite de Halton notée $(X_{n})_{n \in \mathbb{N}}$ construite avec la fonction vanDerCorput(n, base) (https://www.rdocumentation.org/packages/vipor/versions/0.4.5/topics/vanDerCorput) qui permet de générer les n premiers éléments de la suite de VanderCorput en base b.  
+  
+Etudier l'évolution de l'écart entre l'intégrale et l'approximation. Commenter notamment l'évolution pour $10^4 \leq n \leq 10^5$, et la mettre en regard avec la formule du cours pour les suites à faible discrépance.
+
+
+
+La valeur exacte de l'intégrale est $(\frac{1}{4})^{4}$.
+On va regarder tout d'abord l'évolution de $\epsilon_{N} = \mid \frac{1}{N}\sum_{n = 1}^{N} g(X_{n}) - (\frac{1}{4})^{4} \mid$ avec $g$ la fonction à intégrer, pour s'assurer qu'elle tend bien vers $0$.
+
+```{r}
+library(vipor)
+library(ggplot2)
+
+#g est la fonction à intégrer
+g = function(x){
+  prod = 1
+  for (i in 1:4){
+    prod = prod*(x[i]^3)
+  }
+  prod
+}
+
+
+#On génére notre suite de vandercorput en 4D que l'on stock dans notre base de données df
+n_max = 10^5
+df = data.frame(matrix(0, ncol = 4, nrow = n_max))
+baseb = c(2,3,5,7)
+for (i in 1:length(baseb)){
+  df[,i] = vanDerCorput(n_max, base = baseb[i])
+}
+colnames(df) = c("X1","X2","X3","X4")
+
+#On applique g à chaque ligne de la base de données df
+df$g = apply(df, 1, g)
+
+#La valeur de l'intégrale étant 1/4^4, on peut calculer l'erreur commise pour chaque n en approximant l'de la moyenne des (g(xi)) pour i allant de 1 à n
+erreur = abs(cumsum(df$g)/(1:n_max) - 1/4^4)
+df_erreur = data.frame(n = 1:n_max, erreur = erreur)
+
+#On trace l'évolution de l'erreur
+ggplot(df_erreur[seq(1,n_max,l = n_max/50),]) + geom_point(aes(n,erreur)) + scale_x_continuous(trans = 'log10') +
+  scale_y_continuous(trans = 'log10')
+```
+
+D'après le cours, on a $\epsilon_{N} = O(\frac{ln(N)^{p}}{N})$ pour les suites à faibles discrépances.  
+On va donc regarder donc l'évolution du quotient $\frac{\epsilon_{N}}{\frac{ln(N)^{p}}{N}}$ qui doit être majoré quand $N$ tend vers l'infini.  
+
+```{r}
+df_erreur$ratio = df_erreur$erreur/log(1:n_max)^4*(1:n_max)
+
+ggplot(df_erreur[seq(10^4,10^5,l = 1000),]) + geom_point(aes(n,ratio)) + scale_x_continuous(trans = 'log10') 
+```
+Pour $N \in [10^4, 10^5]$, on voit que le quotient reste majoré et aucune divergence vers $+\infty$ n'apparait. On peut l'approximer très grossièrement par une constante $c$ pour comparer l'évolution des courbes de $c \times \frac{ln(N)^{p}}{N}$ et $\epsilon_{N}$
+
+On peut prendre la médiane des valeurs observées pour cette constante $c$.
+On va alors comparer les courbes $c \times \frac{ln(N)^{p}}{N}$ et $\epsilon_{N}$ :
+```{r}
+ratio_median = median(df_erreur[seq(10^4,10^5,l = 1000),"ratio"])
+df_erreur$ratio_fois_decroiss = ratio_median*log(1:n_max)^4/(1:n_max)
+
+ggplot(data = df_erreur[seq(10^4,10^5,l = 1000),]) + geom_point(aes(x=n, y=erreur)) + geom_line(aes(x=n, y=ratio_fois_decroiss), col = "red") + scale_x_continuous(trans = 'log10')
+```
+On constate même ici que la convergence de $\epsilon_{N}$ semble légèrement plus rapide que $\frac{ln(N)^{p}}{N}$ (on le voyait déjà sur le plot précédent en observant que le ratio diminuait)
