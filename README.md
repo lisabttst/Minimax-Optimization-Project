@@ -1,2 +1,2 @@
-# Minimax-Optimization-Project
-This project focuses on the implementation of the Minimax optimization technique. Minimax is a decision rule used for minimizing the possible loss in a worst-case scenario, often applied in game theory, statistics, and many decision-making processes.
+# Experimental Design Project
+This project delves into the principles and applications of experimental design, specifically focusing on the "Plan d'Expérience" approach. It aims to analyze and optimize various factors affecting outcomes in complex systems or processes.
